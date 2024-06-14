@@ -7,8 +7,8 @@
 # class UnsplashImageScraper:
 #     def __init__(self):
 #         self.PROXY = {
-#             'http': 'http://127.0.0.1:4392',
-#             'https': 'https:/127.0.0.1:443'
+#             'http': 'http://127.0.0.1:123',
+#             'https': 'https:/127.0.0.1:321'
 #         }
 #         self.UNSPLASH_URL = "https://unsplash.com"
 #         self.SAVE_DIR = "images"
@@ -69,8 +69,8 @@ import threading
 class UnsplashImageScraper:
     def __init__(self):
         self.PROXY = {
-            'http': 'http://127.0.0.1:4392',
-            'https': 'https:/127.0.0.1:443'
+            'http': 'http://127.0.0.1:123',
+            'https': 'https:/127.0.0.1:321'
         }
         self.UNSPLASH_URL = "https://unsplash.com"
         self.SAVE_DIR = "images"
