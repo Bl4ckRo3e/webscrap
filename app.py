@@ -1,80 +1,60 @@
-import os
 import requests
+from bs4 import BeautifulSoup
+import os
 import json
-from threading import Thread
-from queue import Queue
+import threading
 
-# Define the URL to scrape
-url = "https://unsplash.com/"
+class UnsplashImageScraper:
+    def __init__(self):
+        self.PROXY = {
+            'http': 'http://127.0.0.1:4392',
+            'https': 'https:/127.0.0.1:443'
+        }
+        self.UNSPLASH_URL = "https://unsplash.com"
+        self.SAVE_DIR = "images"
 
-# Create a directory to store images
-if not os.path.exists("images"):
-    os.makedirs("images")
+        if not os.path.exists(self.SAVE_DIR):
+            os.makedirs(self.SAVE_DIR)
 
-# Create a Queue for image URLs
-image_queue = Queue()
+    def get_image_links(self):
+        response = requests.get(self.UNSPLASH_URL, proxies=self.PROXY)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        links = []
+        for img in soup.find_all('img', {'srcset': True}):
+            links.append(img['src'])
+        return links
 
-# Function to download image from URL
-def download_image(url, directory):
-    image_name = url.split("/")[-1]
-    image_path = os.path.join(directory, image_name)
-    
-    r = requests.get(url)
-    if r.status_code == 200:
-        with open(image_path, 'wb') as f:
-            f.write(r.content)
-        return image_path
-    
-# Function to process image metadata with PhotoTag.ai
-def process_image_metadata(image_name):
-    # Add code to communicate with PhotoTag.ai and get enhanced metadata
-    # For now, let's just create a dummy metadata
-    metadata = {
-        "title": "Dummy Title",
-        "description": "Dummy Description",
-        "tags": ["tag1", "tag2"]
-    }
-    return metadata
+    def download_image(self, url, save_path):
+        response = requests.get(url)
+        with open(save_path, 'wb') as file:
+            file.write(response.content)
 
-# Function to save metadata as JSON file
-def save_metadata(metadata, directory):
-    metadata_path = os.path.join(directory, "metadata.json")
-    with open(metadata_path, 'w') as f:
-        json.dump(metadata, f)
+    def save_metadata(self, image_id, photographer, category, save_path):
+        metadata = {
+            'image_id': image_id,
+            'photographer': photographer,
+            'category': category
+        }
+        with open(save_path, 'w') as file:
+            json.dump(metadata, file, indent=4)
 
-# Worker function for each thread
-def worker():
-    while not image_queue.empty():
-        image_url, directory = image_queue.get()
-        image_path = download_image(image_url, directory)
-        if image_path:
-            metadata = process_image_metadata(image_path)
-            save_metadata(metadata, directory)
-        image_queue.task_done()
+    def download_and_save_image(self, link, idx):
+        image_id = f'image_{idx}'
+        save_path = os.path.join(self.SAVE_DIR, image_id + '.jpg')
+        metadata_path = os.path.join(self.SAVE_DIR, image_id + '.json')
 
-# Main function for downloading and processing images
-def main():
-    # Add code to scrape image URLs from Unsplash
-    # For now, let's use some sample image URLs
-    image_urls = ["https://unsplash.com/photos/example1.jpg", "https://unsplash.com/photos/example2.jpg"]
-    
-    for image_url in image_urls:
-        image_id = image_url.split("/")[-1].split(".")[0]
-        photographer_name = "john_doe"  # You can extract photographer name from image URL
-        directory = os.path.join("images", f"{image_id}_{photographer_name}")
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        image_queue.put((image_url, directory))
-    
-    # Create and start threads
-    for i in range(5):  # Number of threads
-        t = Thread(target=worker)
-        t.daemon = True
-        t.start()
-    
-    # Wait for all threads to complete
-    image_queue.join()
-    print("Download and metadata processing complete.")
+        self.download_image(link, save_path)
+        self.save_metadata(image_id, "Unknown", "Uncategorized", metadata_path)
 
-if __name__ == "__main__":
-    main()
+unsplash_image_scraper = UnsplashImageScraper()
+
+image_links = unsplash_image_scraper.get_image_links()
+
+threads = []
+for idx, link in enumerate(image_links):
+    thread = threading.Thread(target=unsplash_image_scraper.download_and_save_image, args=(link, idx))
+    threads.append(thread)
+    thread.start()
+
+for thread in threads:
+    thread.join()
